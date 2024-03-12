@@ -46,13 +46,56 @@ export default function App() {
       const jsonData = await dataCity.json();
       setCity(jsonData.result);
     }
-    
+    const apiData = async () => {
+      // Fetch API data when checkbox is checked
+      const data = await fetch('https://opendata.resas-portal.go.jp/api/v1/population/composition/perYear?' + new URLSearchParams(
+        { cityCode: cityCode }) + '&' + new URLSearchParams({ prefCode: prefCode }), {
+        method: "GET",
+        headers: headers
+      });
+      const currentCity = city.filter(item => {
+        return item.cityCode === cityCode;
+      });
+      const currentCityNameArray = [...cityNameArray, currentCity[0].cityName];
+      setCityNameArray(currentCityNameArray);
+
+      const jsonData = await data.json();
+
+      const newData = jsonData.result.data[0].data.map((result: { year: any; value: any; }) => {
+        return {
+          "year": result.year,
+          [currentCity[0].cityName]: result.value,
+        };
+      })
+
+      const mergedData = dataGet.map((item: any) => {
+        const newItem = newData.find((newItem: any) => newItem.year === item.year);
+        if (newItem) {
+          return {
+            year: item.year,
+            ...item,
+            ...newItem
+          };
+        } else {
+          return item;
+        }
+      });
+
+      newData.forEach((newItem: any) => {
+        const existingItem = mergedData.find((item: any) => item.year === newItem.year);
+        if (!existingItem) {
+          mergedData.push(newItem);
+        }
+      });
+      setData(mergedData);
+    }
     apiPrefecture();
     if (prefCode !== "0") {
       apiCity();
     }
     if (prefCode !== "0" && cityCode !== "0") {
       setShowGraph(true);
+      apiData();
     }
   }, [prefCode, cityCode]);
 
@@ -105,6 +148,23 @@ export default function App() {
             );
           })}
         </div>
+        {showGraph &&
+          <div className='data'>
+              <LineChart width={600} height={300} data={dataGet}>
+                {cityNameArray.map((value) => {
+                  return (
+                    <Line type="monotone" dataKey={value} stroke="#8884d8" />
+                  );
+                  })
+                }
+                <CartesianGrid stroke="#ccc" />
+                <XAxis dataKey="year" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+              </LineChart>
+          </div>
+        }
       </body>
     </div>
 
