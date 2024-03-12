@@ -1,17 +1,10 @@
 import './App.css';
-import { useState, useEffect, } from "react";
+import { useState, useEffect, SetStateAction, } from "react";
 import { LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, Legend } from 'recharts';
-
-type prefectureProps = {
-  prefCode: string;
-  prefName: string;
-};
-type cityProps = {
-  prefCode: string;
-  cityCode: string;
-  cityName: string;
-  bigCityFlag: string;
-}
+import { cityProps } from './modals/city';
+import { prefectureProps } from './modals/prefecture';
+import { isEmpty2DArray, mergeArrays } from './handlers/const';
+import { headers } from './api/axios';
 
 export default function App() {
   const [prefecture, setPrefecture] = useState<prefectureProps[]>([]);
@@ -20,13 +13,10 @@ export default function App() {
   const [cityCode, setCityCode] = useState("0");
   const [isHidden, setIsHidden] = useState(false);
   const [showGraph, setShowGraph] = useState(false);
-  const [dataGet, setData] = useState<number[]>([]);
+  const [dataGet, setDataGet] = useState<any[][]>([[]]);
   const [cityNameArray, setCityNameArray] = useState<string[]>([]);
-  // const xApiKey: string = (process.env.XAPIKEY as string);
-  const headers: HeadersInit = {
-    'Content-Type': 'application/json',
-    'X-API-KEY': process.env.REACT_APP_XAPIKEY!,
-  }
+  const [filter, setFilter] = useState("0");
+
   useEffect(() => {
     const apiPrefecture = async () => {
       const dataPrefecture = await fetch("https://opendata.resas-portal.go.jp/api/v1/prefectures", {
@@ -60,34 +50,23 @@ export default function App() {
       setCityNameArray(currentCityNameArray);
 
       const jsonData = await data.json();
-
-      const newData = jsonData.result.data[0].data.map((result: { year: any; value: any; }) => {
-        return {
-          "year": result.year,
-          [currentCity[0].cityName]: result.value,
-        };
-      })
-
-      const mergedData = dataGet.map((item: any) => {
-        const newItem = newData.find((newItem: any) => newItem.year === item.year);
-        if (newItem) {
+      // Process jsonData.result.data into newData
+      const newData = jsonData.result.data.map((labelData: { data: { year: any; value: any; }[]; }) => {
+        return labelData.data.map((result: { year: any; value: any; }) => {
           return {
-            year: item.year,
-            ...item,
-            ...newItem
+            "year": result.year,
+            [currentCity[0].cityName]: result.value,
           };
-        } else {
-          return item;
-        }
+        });
       });
 
-      newData.forEach((newItem: any) => {
-        const existingItem = mergedData.find((item: any) => item.year === newItem.year);
-        if (!existingItem) {
-          mergedData.push(newItem);
-        }
-      });
-      setData(mergedData);
+      let combinedData;
+      if (isEmpty2DArray(dataGet)) {
+        combinedData = newData;
+      } else {
+        combinedData = mergeArrays(newData, dataGet);     
+      };                                                                                                      
+      setDataGet(combinedData);
     }
     apiPrefecture();
     if (prefCode !== "0") {
@@ -97,7 +76,7 @@ export default function App() {
       setShowGraph(true);
       apiData();
     }
-  }, [prefCode, cityCode]);
+  }, [prefCode, cityCode, filter]);
 
   const handleCheckboxPrefChange = (event: any, prefCode: string) => {
     if (event.target.checked) {
@@ -114,6 +93,10 @@ export default function App() {
       setCityNameArray(cityNameArray.filter(item => item !== cityName)); //Remove cityName from array
       setCityCode("0");
     }
+  };
+
+  const handleChangeFilter = (event: { target: { value: SetStateAction<string>; }; }) => {
+    setFilter(event.target.value);
   };
 
   return (
@@ -148,9 +131,22 @@ export default function App() {
             );
           })}
         </div>
-        {showGraph &&
+        <div className="dropdown">
+          <select
+          name="filter"
+          value={filter}
+          onChange={handleChangeFilter}
+          >
+            <option value="0">総人口</option>
+            <option value="1">年少人口</option>
+            <option value="2">生産年齢人口</option>
+            <option value="3">老年人口</option>
+          </select>
+        </div>
+        {
+        showGraph && 
           <div className='data'>
-              <LineChart width={600} height={300} data={dataGet}>
+              <LineChart width={600} height={300} data={dataGet[parseInt(filter)]}>
                 {cityNameArray.map((value) => {
                   return (
                     <Line type="monotone" dataKey={value} stroke="#8884d8" />
@@ -167,6 +163,6 @@ export default function App() {
         }
       </body>
     </div>
-
+        
   );
 }
