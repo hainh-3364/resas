@@ -1,5 +1,5 @@
 import './App.css';
-import { useState, useEffect, SetStateAction, } from "react";
+import { useState, useEffect, } from "react";
 import { LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, Legend } from 'recharts';
 import { cityProps } from './modals/city';
 import { prefectureProps } from './modals/prefecture';
