@@ -3,7 +3,7 @@ import { useState, useEffect, SetStateAction, } from "react";
 import { LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, Legend } from 'recharts';
 import { cityProps } from './modals/city';
 import { prefectureProps } from './modals/prefecture';
-import { isEmpty2DArray, mergeArrays } from './handlers/const';
+import { ELDERLY, TOTAL, WORKING_AGE, YOUNG, isEmpty2DArray, mergeArrays } from './handlers/const';
 import { headers } from './api/axios';
 
 export default function App() {
@@ -15,7 +15,7 @@ export default function App() {
   const [showGraph, setShowGraph] = useState(false);
   const [dataGet, setDataGet] = useState<any[][]>([[]]);
   const [cityNameArray, setCityNameArray] = useState<string[]>([]);
-  const [filter, setFilter] = useState("0");
+  const [filter, setFilter] = useState(TOTAL);
 
   useEffect(() => {
     const apiPrefecture = async () => {
@@ -38,7 +38,8 @@ export default function App() {
     }
     const apiData = async () => {
       // Fetch API data when checkbox is checked
-      const data = await fetch('https://opendata.resas-portal.go.jp/api/v1/population/composition/perYear?' + new URLSearchParams(
+      try {
+        const data = await fetch('https://opendata.resas-portal.go.jp/api/v1/population/composition/perYear?' + new URLSearchParams(
         { cityCode: cityCode }) + '&' + new URLSearchParams({ prefCode: prefCode }), {
         method: "GET",
         headers: headers
@@ -67,6 +68,8 @@ export default function App() {
         combinedData = mergeArrays(newData, dataGet);     
       };                                                                                                      
       setDataGet(combinedData);
+      } catch (error) { 
+      }
     }
     apiPrefecture();
     if (prefCode !== "0") {
@@ -95,7 +98,7 @@ export default function App() {
     }
   };
 
-  const handleChangeFilter = (event: { target: { value: SetStateAction<string>; }; }) => {
+  const handleChangeFilter = (event: any) => {
     setFilter(event.target.value);
   };
 
@@ -137,16 +140,16 @@ export default function App() {
           value={filter}
           onChange={handleChangeFilter}
           >
-            <option value="0">総人口</option>
-            <option value="1">年少人口</option>
-            <option value="2">生産年齢人口</option>
-            <option value="3">老年人口</option>
+            <option value={TOTAL}>総人口</option>
+            <option value={YOUNG}>年少人口</option>
+            <option value={WORKING_AGE}>生産年齢人口</option>
+            <option value={ELDERLY}>老年人口</option>
           </select>
         </div>
         {
         showGraph && 
           <div className='data'>
-              <LineChart width={600} height={300} data={dataGet[parseInt(filter)]}>
+              <LineChart width={600} height={300} data={dataGet[filter]}>
                 {cityNameArray.map((value) => {
                   return (
                     <Line type="monotone" dataKey={value} stroke="#8884d8" />
